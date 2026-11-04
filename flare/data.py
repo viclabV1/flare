@@ -24,11 +24,15 @@ HORIZON_DAYS = 100.0
 # with 1.5 d; FLARE_COLOR_WINDOW overrides it for sensitivity studies.
 COLOR_WINDOW_DAYS = float(os.environ.get("FLARE_COLOR_WINDOW", "1.5"))
 
-# Quality-filter defaults
+#TODO should these be tunable?
+# Quality-filter defaults 
 MIN_OBS_TOTAL = 8
+MIN_OBS_U = 0
 MIN_OBS_G = 2
 MIN_OBS_R = 2
 MIN_OBS_I = 0
+MIN_OBS_Z = 0
+MIN_OBS_Y = 0
 MIN_BANDS_OBSERVED = 2
 
 LOG_CONST = 1.0 / np.log(10)  # 0.43429; logflux_err = flux_err/flux * LOG_CONST
@@ -36,11 +40,11 @@ LOG_CONST = 1.0 / np.log(10)  # 0.43429; logflux_err = flux_err/flux * LOG_CONST
 # npz `data` column indices (see `columns` array in any object file)
 COL = {name: i for i, name in enumerate([
     "dt", "dt_prev", "band_id", "logflux", "logflux_err",
-    "band_ztfg", "band_ztfr", "band_ztfi",
-    "g_r", "g_r_err", "r_i", "r_i_err", "has_g_r", "has_r_i", "label",
+    "lsst-u", "lsst-g", "lsst-r", "lsst-i", "lsst-z", "lsst-Y",
+    "u_g", "u_g_err", "g_r", "g_r_err", "r_i", "r_i_err", "i_z", "i_z_err", "z_Y", "z_Y_err", "has_u_g", "has_g_r", "has_r_i", "has_i_z", "has_z_Y", "label",
 ])}
 
-BAND_NAMES = ["g", "r", "i"]
+BAND_NAMES = ["u", "g", "r", "i", "z", "Y"]
 
 
 def load_manifest(split: str, data_dir: Path = None) -> pd.DataFrame:
@@ -63,10 +67,10 @@ def passes_quality(arr: np.ndarray) -> bool:
     if len(arr) == 0:
         return False
     band = arr[:, COL["band_id"]].astype(np.int64)
-    counts = np.array([(band == b).sum() for b in [0, 1, 2]], dtype=int)
+    counts = np.array([(band == b).sum() for b in [0, 1, 2, 3, 4, 5]], dtype=int)
     if arr.shape[0] < MIN_OBS_TOTAL:
         return False
-    if counts[0] < MIN_OBS_G or counts[1] < MIN_OBS_R or counts[2] < MIN_OBS_I:
+    if counts[0] < MIN_OBS_U or counts[1] < MIN_OBS_G or counts[2] < MIN_OBS_R or counts[3] < MIN_OBS_I or counts[4] < MIN_OBS_Z or counts[5] < MIN_OBS_Y:
         return False
     if int((counts > 0).sum()) < MIN_BANDS_OBSERVED:
         return False
@@ -135,7 +139,7 @@ def recompute_colors(events):
     even after the event rows themselves have been truncated.
     """
     a = np.asarray(events, dtype=float).copy()
-    for name, first, second in [('g_r', 0, 1), ('r_i', 1, 2)]:
+    for name, first, second in [('u_g', 0, 1), ('g_r', 1, 2), ('r_i', 2, 3), ('i_z', 3, 4), ('z_Y', 4, 5)]:
         a[:, [COL[name], COL[name + '_err'], COL['has_' + name]]] = 0.
         for i in range(len(a)):
             band = a[i, COL['band_id']]
@@ -159,7 +163,7 @@ def color_series(arr: np.ndarray) -> Dict[str, np.ndarray]:
     """g−r / r−i series rebuilt from available rows, ignoring cached colors."""
     arr = recompute_colors(arr)
     out = {}
-    for c, flag in [("g_r", "has_g_r"), ("r_i", "has_r_i")]:
+    for c, flag in [("u_g", "has_u_g"), ("g_r", "has_g_r"), ("r_i", "has_r_i"), ("i_z", "has_i_z"), ("z_Y", "has_z_Y")]:
         m = arr[:, COL[flag]] > 0.5
         out[c + "_t"] = arr[m, COL["dt"]].astype(np.float64)
         out[c] = arr[m, COL[c]].astype(np.float64)

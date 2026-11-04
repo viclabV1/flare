@@ -119,7 +119,7 @@ def _band_features(lc: D.BandLC, prefix: str) -> Dict[str, float]:
 
 def _color_features(colors: Dict[str, np.ndarray]) -> Dict[str, float]:
     out: Dict[str, float] = {}
-    for c in ["g_r", "r_i"]:
+    for c in ["u_g", "g_r", "r_i", "i_z", "z_Y"]:
         t, v, e = colors[c + "_t"], colors[c], colors[c + "_err"]
         n = len(v)
         out[f"{c}_n"] = float(n)
@@ -181,6 +181,17 @@ def extract_from_array(arr) -> Dict[str, float]:
     out.update(_color_features(D.color_series(arr)))
 
     # cross-band peak relations
+    #u-g
+    if "u" in bands and "g" in bands:
+        tu, tg = out["u_t_peak"], out["g_t_peak"]
+        out["ug_peak_dt"] = tu - tg
+        out["ug_peak_logflux_ratio"] = out["u_logflux_peak"] - out["g_logflux_peak"]
+        out["ug_n_ratio"] = out["u_n_obs"] / max(out["g_n_obs"], 1.0)
+    else:
+        out["ug_peak_dt"] = np.nan
+        out["ug_peak_logflux_ratio"] = np.nan
+        out["ug_n_ratio"] = np.nan
+    # g-r (original)
     if "g" in bands and "r" in bands:
         tg, tr = out["g_t_peak"], out["r_t_peak"]
         out["gr_peak_dt"] = tg - tr
@@ -190,4 +201,35 @@ def extract_from_array(arr) -> Dict[str, float]:
         out["gr_peak_dt"] = np.nan
         out["gr_peak_logflux_ratio"] = np.nan
         out["gr_n_ratio"] = np.nan
+    # r-i
+    if "r" in bands and "i" in bands:
+        tr, ti = out["r_t_peak"], out["i_t_peak"]
+        out["ri_peak_dt"] = tr - ti
+        out["ri_peak_logflux_ratio"] = out["r_logflux_peak"] - out["i_logflux_peak"]
+        out["ri_n_ratio"] = out["r_n_obs"] / max(out["i_n_obs"], 1.0)
+    else:
+        out["ri_peak_dt"] = np.nan
+        out["ri_peak_logflux_ratio"] = np.nan
+        out["ri_n_ratio"] = np.nan
+    #i-z
+    if "i" in bands and "z" in bands:
+        ti, tz = out["i_t_peak"], out["z_t_peak"]
+        out["iz_peak_dt"] = ti - tz
+        out["iz_peak_logflux_ratio"] = out["i_logflux_peak"] - out["z_logflux_peak"]
+        out["iz_n_ratio"] = out["i_n_obs"] / max(out["z_n_obs"], 1.0)
+    else:
+        out["iz_peak_dt"] = np.nan
+        out["iz_peak_logflux_ratio"] = np.nan
+        out["iz_n_ratio"] = np.nan
+    #z-Y
+    if "z" in bands and "Y" in bands:
+        tz, tY = out["z_t_peak"], out["Y_t_peak"]
+        out["zY_peak_dt"] = tz - tY
+        out["zY_peak_logflux_ratio"] = out["z_logflux_peak"] - out["Y_logflux_peak"]
+        out["zY_n_ratio"] = out["z_n_obs"] / max(out["Y_n_obs"], 1.0)
+    else:
+        out["zY_peak_dt"] = np.nan
+        out["zY_peak_logflux_ratio"] = np.nan
+        out["zY_n_ratio"] = np.nan
+
     return out
